@@ -4,8 +4,7 @@ Timeseries Data Anomaly Detection
 # Implementation Papers
 
 1. **MADGAN** [영상](https://youtu.be/Y3FMi2EW23Y?list=PLetSlH8YjIfUi6p0wdA6z2dFbXUpLor6K) : [Multivariate Anomaly Detection for Time Series Data with GANs](https://arxiv.org/abs/1901.04997) [official github](https://github.com/LiDan456/MAD-GANs) 
-3. **TAnoGAN** [영상] 
-(https://youtu.be/WkK52d0RWk8?list=PLetSlH8YjIfUi6p0wdA6z2dFbXUpLor6K) : [TAnoGAN: Time Series Anomaly Detection with Generative Adversarial Networks](https://arxiv.org/pdf/2008.09567.pdf) [official github](https://github.com/mdabashar/TAnoGAN) 
+3. **TAnoGAN** [영상](https://youtu.be/WkK52d0RWk8?list=PLetSlH8YjIfUi6p0wdA6z2dFbXUpLor6K) : [TAnoGAN: Time Series Anomaly Detection with Generative Adversarial Networks](https://arxiv.org/pdf/2008.09567.pdf) [official github](https://github.com/mdabashar/TAnoGAN) 
 
 # Train 
 
