@@ -1,30 +1,40 @@
-# timeseries_anomaly
+# Timeseries Anomaly Detection
 Timeseries Data Anomaly Detection
 
-# Implementation Papers
+# Dacon
+**HAI2021**
+https://dacon.io/competitions/official/235757/leaderboard
 
-1. **MADGAN** [영상](https://youtu.be/Y3FMi2EW23Y?list=PLetSlH8YjIfUi6p0wdA6z2dFbXUpLor6K) : [Multivariate Anomaly Detection for Time Series Data with GANs](https://arxiv.org/abs/1901.04997) [official github](https://github.com/LiDan456/MAD-GANs) 
-3. **TAnoGAN** [영상](https://youtu.be/WkK52d0RWk8?list=PLetSlH8YjIfUi6p0wdA6z2dFbXUpLor6K) : [TAnoGAN: Time Series Anomaly Detection with Generative Adversarial Networks](https://arxiv.org/pdf/2008.09567.pdf) [official github](https://github.com/mdabashar/TAnoGAN) 
+# Dataset
 
-# Train 
+**1. 학습 데이터셋 (6개)**
 
-- Default 값: `main.py`의 config_args
+파일명: 'train1.csv', 'train2.csv', 'train3.csv', 'train4.csv', 'train5.csv', 'train6.csv'
+설명: 정상적인 운영 상황에서 수집된 데이터(각 파일별로 시간 연속성을 가짐)
+Column1 ('timestamp'): 관측 시각
+Column2, 3, …, 80 ('C01', 'C02', …, 'C86'): 상태 관측 데이터
 
-```bash
-python main.py --train --logdir $logdir --datadir $datadir --dataname $dataname --epochs $epochs --batch_size $batch_size --scale $method --gen_loss $loss --window_size $window_size 
-```
 
-# Test
+**2. 검증 데이터셋 (1개)**
 
-- 모든 test set 시점의 Anomaly Score 계산
-- 한 시점씩 새로운 데이터가 들어오는 가정하에 window 마다 맨 마지막 시점의 Anomaly Score 저장
+파일명: 'validation.csv'
+5가지 공격 상황에서 수집된 데이터(시간 연속성을 가짐)
+Column1 ('timestamp'): 관측 시각
+Column2, 3, …, 80 ('C01', 'C02', …, 'C86'): 상태 관측 데이
+Column88: 공격 라벨 (정상:'0', 공격:'1')
 
-```bash
-python main.py --test --logdir $logdir --dataname $dataname --resume $version --scale $method --scale $scale --lam $lambda --optim_iter $iteration
-```
 
-# Tensorboard
+**3. 테스트 데이터셋 (3개)**
 
-```bash
-tensorboard --logdir $logdir --port $port_number --host $host_ip
-```
+파일명: 'test1.csv', 'test2.csv', 'test3.csv'
+Column1 ('timestamp'): 관측 시각
+Column2, 3, …, 80 ('C01', 'C02', …, 'C86'): 상태 관측 데이터
+
+
+**4. sample_submission.csv(제출양식)**
+
+Column1 ('timestamp'): 관측 시각
+Column2 ('attack'): 공격 예측값(정상:'0', 공격:'1')
+
+
+**5. eTaPR-21.8.2-py3-none-any.whl: 평가산식 도구**
