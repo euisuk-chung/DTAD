@@ -39,7 +39,8 @@ def main(args, config):
 
     set_seed(72)
 
-    trainloader, validloader, testloader = get_dataloader(data_path, processed_dataset_path, WINDOW_GIVEN, WINDOW_SIZE,
+    trainloader, validloader, testloader = get_dataloader(data_path, processed_dataset_path, 
+                                                          WINDOW_GIVEN, WINDOW_SIZE,
                                                           loader_params, train_stride=stride)
 
     pdb.set_trace()
