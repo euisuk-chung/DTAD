@@ -4,10 +4,11 @@ import datetime
 import numpy as np
 from models import *
 from tqdm.notebook import trange
+import os
 import sys
-from utils.utils import EarlyStopping
+from utils.utils import EarlyStopping, range_check
 
-class ModelTrain:
+class Model:
     def __init__(self,
                  model,
                  trainloader,
@@ -19,6 +20,8 @@ class ModelTrain:
                  early_patience,
                  early_verbose,
                  model_params):
+        self.model_name = model
+        self.checkpoint_path = model_params.checkpoint_path
         self.model = globals()[model](**model_params)
         self.trainloader = trainloader
         self.validloader = validloader
@@ -32,33 +35,34 @@ class ModelTrain:
 
         early_stopping = EarlyStopping(patience=early_patience, verbose=early_verbose)
 
-        for e in epochs:
-            self.train(e)
 
-        CHECK_TS, CHECK_DIST, CHECK_ATT = self.validation()
-        ANOMALY_SCORE = np.mean(CHECK_DIST, axis=1)
-
-
-    def train(self, e):
+    def train(self):
         self.model.train()
         epoch_loss = 0
         best = {"loss": sys.float_info.max}
 
-        for batch in self.trainloader:
-            self.optimizer.zero_grad()
-            given = batch["given"].cuda()
-            guess = self.model(given)
-            answer = batch["answer"].cuda()
-            loss = self.criterion(answer, guess)
-            loss.backward()
-            epoch_loss += loss.item()
-            self.optimizer.step()
-        self.history.setdefault('loss', []).append(epoch_loss)
-        self.epochs.set_postfix_str(f"loss: {epoch_loss:.6f}")
-        if epoch_loss < best["loss"]:
-            best["state"] = self.model.state_dict()
-            best["loss"] = epoch_loss
-            best["epoch"] = e + 1
+        for e in self.epochs:
+            for batch in self.trainloader:
+                self.optimizer.zero_grad()
+                given = batch["given"].to(self.device)
+                guess = self.model(given)
+                answer = batch["answer"].to(self.device)
+                loss = self.criterion(answer, guess)
+                loss.backward()
+                epoch_loss += loss.item()
+                self.optimizer.step()
+
+            self.history.setdefault('loss', []).append(epoch_loss)
+            self.epochs.set_postfix_str(f"loss: {epoch_loss:.6f}")
+
+            if epoch_loss < best["loss"]:
+                best["state"] = self.model.state_dict()
+                best["loss"] = epoch_loss
+                best["epoch"] = e + 1
+
+            if e % 10 == 9:
+                checkpoint_name = f'{self.model_name}_{e}.tar'
+                self.model_save(os.path.join(checkpoint_path, checkpoint_name))
 
     def validation(self):
         self.model.eval()
@@ -82,13 +86,16 @@ class ModelTrain:
         )
 
 
-    def model_save(self, checkpoint_path):
-        with open(checkpoint_path, "wb") as f:
-            torch.save(
-                {
-                    "state": self.best_model["state"],
-                    "best_epoch": self.best_model["epoch"],
-                    "loss_history": self.history['loss'],
-                },
-                f,
-            )
+    def model_save(self, checkpoint):
+
+        torch.save(
+            {
+                "state": self.best_model["state"],
+                "best_epoch": self.best_model["epoch"],
+                "loss_history": self.history['loss'],
+            },
+            checkpoint
+        )
+
+    def model_load(self, checkpoint):
+        model.load_state_dict(torch.load(checkpoint)['model'])

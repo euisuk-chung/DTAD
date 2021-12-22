@@ -28,7 +28,7 @@ def boundary_check(df):
     x = np.array(df, dtype=np.float32)
     return np.any(x > 1.0), np.any(x < 0), np.any(np.isnan(x))
 
-class HaiDataset(Dataset):
+class predictive_Dataset(Dataset):
     def __init__(self, timestamps, df, WINDOW_GIVEN=89, WINDOW_SIZE=90, stride=1, attacks=None):
         self.ts = np.array(timestamps)
         self.tag_values = np.array(df, dtype=np.float32)
@@ -62,6 +62,40 @@ class HaiDataset(Dataset):
         item["answer"] = torch.from_numpy(self.tag_values[last])
         return item
 
+class generative_Dataset(Dataset):
+    def __init__(self, timestamps, df, WINDOW_GIVEN=89, WINDOW_SIZE=90, stride=1, attacks=None):
+        self.ts = np.array(timestamps)
+        self.tag_values = np.array(df, dtype=np.float32)
+        self.WINDOW_GIVEN = WINDOW_GIVEN
+        self.WINDOW_SIZE = WINDOW_SIZE
+        self.valid_idxs = []
+        for L in trange(len(self.ts) - WINDOW_SIZE + 1):
+            R = L + self.WINDOW_SIZE - 1
+            if dateutil.parser.parse(self.ts[R]) - dateutil.parser.parse(
+                    self.ts[L]
+            ) == timedelta(seconds=self.WINDOW_SIZE - 1):
+                self.valid_idxs.append(L)
+        self.valid_idxs = np.array(self.valid_idxs, dtype=np.int32)[::stride]
+        self.n_idxs = len(self.valid_idxs)
+        print(f"# of valid windows: {self.n_idxs}")
+        if attacks is not None:
+            self.attacks = np.array(attacks, dtype=np.float32)
+            self.with_attack = True
+        else:
+            self.with_attack = False
+
+    def __len__(self):
+        return self.n_idxs
+
+    def __getitem__(self, idx):
+        i = self.valid_idxs[idx]
+        last = i + self.WINDOW_SIZE - 1
+        item = {"attack": self.attacks[last]} if self.with_attack else {}
+        item["ts"] = self.ts[i + self.WINDOW_SIZE - 1]
+        item["given"] = torch.from_numpy(self.tag_values[i: i + self.WINDOW_GIVEN])
+        item["answer"] = torch.from_numpy(self.tag_values[last])
+        return item
+
 def get_normalized_data(data_path):
     TRAIN_DATASET = sorted([x for x in Path(os.path.join(data_path, 'train')).glob("train*.csv")])
     TEST_DATASET = sorted([x for x in Path(os.path.join(data_path, 'test')).glob("test*.csv")])
@@ -81,8 +115,7 @@ def get_normalized_data(data_path):
     TAG_MAX = TRAIN_DF_RAW[VALID_COLUMNS_IN_TRAIN_DATASET].max()
 
     TRAIN_DF = normalize(TRAIN_DF_RAW[VALID_COLUMNS_IN_TRAIN_DATASET], TAG_MIN, TAG_MAX).ewm(alpha=0.9).mean()
-    VALIDATION_DF = normalize(VALIDATION_DF_RAW[VALID_COLUMNS_IN_TRAIN_DATASET], TAG_MIN,
-                              TAG_MAX)  # 왜 validation은 exponential weighted function 안함?
+    VALIDATION_DF = normalize(VALIDATION_DF_RAW[VALID_COLUMNS_IN_TRAIN_DATASET], TAG_MIN, TAG_MAX).ewm(alpha=0.9).mean()
     TEST_DF = normalize(TEST_DF_RAW[VALID_COLUMNS_IN_TRAIN_DATASET], TAG_MIN, TAG_MAX).ewm(alpha=0.9).mean()
 
     return {'Train': {'timestamps': TRAIN_DF_RAW[TIMESTAMP_FIELD],
@@ -95,9 +128,10 @@ def get_normalized_data(data_path):
                      'dataframe': TEST_DF,
                      'attacks': None}}
 
-def check_datafile(data_path, processed_dataset_path, dataset_type, WINDOW_GIVEN, WINDOW_SIZE, stride=1):
+def check_datafile(data_path, processed_dataset_path, dataset_type, WINDOW_GIVEN, WINDOW_SIZE, model_type, stride=1):
     try:
         assert dataset_type in ('Train', 'Test', 'Valid'), f"k must be Train or Test or Valid"
+        assert model_type in ('predictive', 'generative'), f"k must be predictive or generative"
     except AssertionError as e:
         raise
 
@@ -122,9 +156,14 @@ def check_datafile(data_path, processed_dataset_path, dataset_type, WINDOW_GIVEN
                 pickle.dump(normalized_data, f)
             print(f'{normalized_data_path} generation complete!')
 
-        data = HaiDataset(
-            normalized_data[dataset_type]['timestamps'], normalized_data[dataset_type]['dataframe'],
-            WINDOW_GIVEN, WINDOW_SIZE, stride=stride, attacks=normalized_data[dataset_type]['attacks'])
+        if model_type == 'predictive':
+            data = predictive_Dataset(
+                normalized_data[dataset_type]['timestamps'], normalized_data[dataset_type]['dataframe'],
+                WINDOW_GIVEN, WINDOW_SIZE, stride=stride, attacks=normalized_data[dataset_type]['attacks'])
+        elif model_type == 'generative':
+            data = generative_Dataset(
+                normalized_data[dataset_type]['timestamps'], normalized_data[dataset_type]['dataframe'],
+                WINDOW_GIVEN, WINDOW_SIZE, stride=stride, attacks=normalized_data[dataset_type]['attacks'])
 
         with open(path, "wb") as f:
             pickle.dump(data, f)
@@ -132,33 +171,34 @@ def check_datafile(data_path, processed_dataset_path, dataset_type, WINDOW_GIVEN
 
     return data
 
+def get_dataloader(data_path, processed_dataset_path, WINDOW_GIVEN, WINDOW_SIZE, dataloader_params, model_type,
+                    train_stride=10):
 
-def get_dataloader(data_path, processed_dataset_path, WINDOW_GIVEN, WINDOW_SIZE, dataloader_params, train_stride=10):
-    # HAI_DATASET_TRAIN = HaiDataset(
+    # DATASET_TRAIN = predictive_Dataset(
     #     normalized_data['Train']['timestamps'], normalized_data['TRAIN']['dataframe'],
     #     WINDOW_GIVEN, WINDOW_SIZE, stride=10
     # )
-    # HAI_DATASET_VALIDATION = HaiDataset(
+    # DATASET_VALIDATION = predictive_Dataset(
     #     normalized_data['Valid']['timestamps'], normalized_data['VALIDATION']['dataframe'],
     #     WINDOW_GIVEN, WINDOW_SIZE, attacks=normalized_data['VALIDATION']['attacks']
     # )
-    # HAI_DATASET_TEST = HaiDataset(
+    # DATASET_TEST = predictive_Dataset(
     #     normalized_data['Test']['timestamps'], normalized_data['TEST']['dataframe'],
     #     WINDOW_GIVEN, WINDOW_SIZE, attacks=None
     # )
 
-    HAI_DATASET_TRAIN = check_datafile(data_path, processed_dataset_path, 'Train',
+    DATASET_TRAIN = check_datafile(data_path, processed_dataset_path, 'Train',
                                        WINDOW_GIVEN, WINDOW_SIZE, stride=train_stride)
-    HAI_DATASET_TEST = check_datafile(data_path, processed_dataset_path, 'Test',
+    DATASET_TEST = check_datafile(data_path, processed_dataset_path, 'Test',
                                        WINDOW_GIVEN, WINDOW_SIZE, stride=1)
-    HAI_DATASET_VALIDATION = check_datafile(data_path, processed_dataset_path, 'Valid',
+    DATASET_VALIDATION = check_datafile(data_path, processed_dataset_path, 'Valid',
                                        WINDOW_GIVEN, WINDOW_SIZE, stride=1)
 
     params = dataloader_params.copy()
-    trainloader = DataLoader(HAI_DATASET_TRAIN, **params)
+    trainloader = DataLoader(DATASET_TRAIN, **params)
 
     params['shuffle'] = False
-    validloader = DataLoader(HAI_DATASET_VALIDATION, **params)
-    testloader = DataLoader(HAI_DATASET_TEST, **params)
+    validloader = DataLoader(DATASET_VALIDATION, **params)
+    testloader = DataLoader(DATASET_TEST, **params)
 
     return trainloader, validloader, testloader
