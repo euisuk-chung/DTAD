@@ -1,4 +1,3 @@
-import sys
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -69,7 +68,7 @@ class generative_Dataset(Dataset):
         self.WINDOW_GIVEN = WINDOW_GIVEN
         self.WINDOW_SIZE = WINDOW_SIZE
         self.valid_idxs = []
-        for L in trange(len(self.ts) - WINDOW_SIZE + 1):
+        for L in range(len(self.ts) - WINDOW_SIZE + 1):
             R = L + self.WINDOW_SIZE - 1
             if dateutil.parser.parse(self.ts[R]) - dateutil.parser.parse(
                     self.ts[L]
@@ -93,7 +92,7 @@ class generative_Dataset(Dataset):
         item = {"attack": self.attacks[last]} if self.with_attack else {}
         item["ts"] = self.ts[i + self.WINDOW_SIZE - 1]
         item["given"] = torch.from_numpy(self.tag_values[i: i + self.WINDOW_GIVEN])
-        item["answer"] = torch.from_numpy(self.tag_values[last])
+        item["answer"] = torch.from_numpy(self.tag_values[i: i + self.WINDOW_GIVEN])
         return item
 
 def get_normalized_data(data_path):
@@ -135,8 +134,14 @@ def check_datafile(data_path, processed_dataset_path, dataset_type, WINDOW_GIVEN
     except AssertionError as e:
         raise
 
-    path = os.path.join(processed_dataset_path, dataset_type,
-                        f'{dataset_type}_Given{WINDOW_GIVEN}_Size{WINDOW_SIZE}_Stride{stride}.pkl')
+    path = os.path.join(processed_dataset_path,
+                        os.path.basename(os.path.normpath(data_path)),
+                        dataset_type)
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    path = os.path.join(path, f'{dataset_type}_Given{WINDOW_GIVEN}_Size{WINDOW_SIZE}_Stride{stride}_{model_type}.pkl')
 
     if os.path.isfile(path):
         with open(path, "rb") as f:
@@ -188,11 +193,11 @@ def get_dataloader(data_path, processed_dataset_path, WINDOW_GIVEN, WINDOW_SIZE,
     # )
 
     DATASET_TRAIN = check_datafile(data_path, processed_dataset_path, 'Train',
-                                       WINDOW_GIVEN, WINDOW_SIZE, stride=train_stride)
+                                       WINDOW_GIVEN, WINDOW_SIZE, model_type, stride=train_stride)
     DATASET_TEST = check_datafile(data_path, processed_dataset_path, 'Test',
-                                       WINDOW_GIVEN, WINDOW_SIZE, stride=1)
+                                       WINDOW_GIVEN, WINDOW_SIZE, model_type, stride=1)
     DATASET_VALIDATION = check_datafile(data_path, processed_dataset_path, 'Valid',
-                                       WINDOW_GIVEN, WINDOW_SIZE, stride=1)
+                                       WINDOW_GIVEN, WINDOW_SIZE, model_type, stride=1)
 
     params = dataloader_params.copy()
     trainloader = DataLoader(DATASET_TRAIN, **params)

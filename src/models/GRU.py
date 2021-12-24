@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class StackedGRU(nn.Module):
+class GRU(nn.Module):
     def __init__(self, n_tags, n_hidden, n_layers):
         super().__init__()
         self.rnn = torch.nn.GRU(

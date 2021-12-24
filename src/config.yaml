@@ -11,7 +11,7 @@ seed: 72
 
 
 # data parameters
-window_given: 89
+window_given: &window_given 89
 window_size: 90
 stride: 10
 loader_params:
@@ -26,29 +26,40 @@ epochs: 30
 early_patience: 10
 early_verbose: False
 
+
 # model parameters
-StackedGRU:
+GRU:
   n_hidden: 100
   n_layers: 3
 
 
 LSTMAE:
+  seq_len: *window_given
 
 
-1DCONVAE:
+CONV1dAE:
+  kernel_size: 7
+  stride: 2
+  padding: 3
 
 
-TAnoGAN:
-
-
-MADGAN:
-
+TransformerEncoder:
+  num_heads: 1
+  seq_len: *window_given
+  ff_dim: 4
+  num_transformer_blocks: 4
+  mlp_units:
+    - 86
+    - 86
+  mlp_dropout: 0.4
+  dropout: 0.25
 
 GPT:
   hidden_size: 128
+  max_len: *window_given
   n_layer: 3
   n_head: 1
-  n_inner: 4*128
+  n_inner: 512
   activation_function: relu
   n_positions: 1024
   resid_pdrop: 0.1

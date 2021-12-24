@@ -1,9 +1,4 @@
-"""
-main.py
-Autor: JungwooChoi, HyeongwonKang
-Incremental pseudo labeling for anomaly detection Argument Parser
 
-"""
 import argparse
 
 def str2bool(v):
@@ -29,6 +24,7 @@ def load_config():
     ap.add_argument("-G", "--gpu", type=int, default=0, help="gpu number")
     ap.add_argument("-R", "--range_check", default=30, help="range check", type=int)
     ap.add_argument("-H", "--threshold", type=float, default=0.025, help="anomaly score threshold")
+    ap.add_argument("-C", "--checkpoint", type=str, default=None, help="checkpoint file path")
 
 
     args = vars(ap.parse_args())

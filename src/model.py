@@ -1,12 +1,14 @@
 import torch
 import time
-import datetime
 import numpy as np
-from models import *
-from tqdm.notebook import trange
+from models.GRU import *
+from models.GPT import *
+from models.LSTMAE import *
+from models.CONV1dAE import *
+from models.TransformerEncoder import *
 import os
 import sys
-from utils.utils import EarlyStopping, range_check
+from utils.utils import EarlyStopping, AverageMeter, ProgressMeter
 
 class Model:
     def __init__(self,
@@ -14,55 +16,72 @@ class Model:
                  trainloader,
                  validloader,
                  epochs,
-                 criterion,
-                 optimizer,
                  device,
                  early_patience,
                  early_verbose,
-                 model_params):
+                 checkpoint_path,
+                 model_params,
+                 checkpoint=None):
         self.model_name = model
-        self.checkpoint_path = model_params.checkpoint_path
-        self.model = globals()[model](**model_params)
+        self.checkpoint_path = checkpoint_path
+        input_shape = next(iter(trainloader))['given'].shape[1:]
+        self.model = globals()[model](input_shape[-1], **model_params).to(device)
+
+        if checkpoint is not None:
+            self.model_load(checkpoint)
+
         self.trainloader = trainloader
         self.validloader = validloader
-        self.criterion = criterion
-        self.optimizer = optimizer
+        self.criterion = torch.nn.MSELoss()
+        self.optimizer = torch.optim.AdamW(self.model.parameters())
         self.device = device
         self.history = {}
+        self.best = {"loss": sys.float_info.max}
 
-        self.epochs = trange(epochs, desc="Training")
-        self.data_shape = next(iter(self.trainloader)).shape
-
-        early_stopping = EarlyStopping(patience=early_patience, verbose=early_verbose)
+        self.epochs = epochs
+        self.early_stopping = EarlyStopping(patience=early_patience, verbose=early_verbose)
 
 
-    def train(self):
+    def train(self, progress_display=False):
         self.model.train()
-        epoch_loss = 0
-        best = {"loss": sys.float_info.max}
+        batch_time = AverageMeter('Time', ':6.3f')
+        losses = AverageMeter('Loss', ':.4e')
+        progress = ProgressMeter(
+            len(self.trainloader),
+            [batch_time, losses],
+            prefix="Epoch: [{}]".format(self.epochs))
 
-        for e in self.epochs:
-            for batch in self.trainloader:
+        end = time.time()
+        for e in range(1, self.epochs+1):
+            for idx, batch in enumerate(self.trainloader):
                 self.optimizer.zero_grad()
                 given = batch["given"].to(self.device)
-                guess = self.model(given)
                 answer = batch["answer"].to(self.device)
+                guess = self.model(given)
+                # print(guess.shape, answer.shape)
                 loss = self.criterion(answer, guess)
                 loss.backward()
-                epoch_loss += loss.item()
                 self.optimizer.step()
 
-            self.history.setdefault('loss', []).append(epoch_loss)
-            self.epochs.set_postfix_str(f"loss: {epoch_loss:.6f}")
+                losses.update(loss.item(), batch["given"].size(0))
+                batch_time.update(time.time() - end)
+                end = time.time()
 
-            if epoch_loss < best["loss"]:
-                best["state"] = self.model.state_dict()
-                best["loss"] = epoch_loss
-                best["epoch"] = e + 1
+                if progress_display == True and idx % 10 == 0:
+                    progress.display(idx)
 
-            if e % 10 == 9:
+            self.history.setdefault('loss', []).append(losses.avg)
+
+            if losses.avg < self.best["loss"]:
+                self.best["state"] = self.model.state_dict()
+                self.best["loss"] = losses.avg
+                self.best["epoch"] = e + 1
+
+            if e % 10 == 0:
+                print(f"[Train] Epoch : {e:^3}" \
+                      f"  Train Loss: {losses.avg:.4}")
                 checkpoint_name = f'{self.model_name}_{e}.tar'
-                self.model_save(os.path.join(checkpoint_path, checkpoint_name))
+                self.model_save(os.path.join(self.checkpoint_path, checkpoint_name))
 
     def validation(self):
         self.model.eval()
@@ -90,12 +109,12 @@ class Model:
 
         torch.save(
             {
-                "state": self.best_model["state"],
-                "best_epoch": self.best_model["epoch"],
+                "state": self.best["state"],
+                "best_epoch": self.best["epoch"],
                 "loss_history": self.history['loss'],
             },
             checkpoint
         )
 
     def model_load(self, checkpoint):
-        model.load_state_dict(torch.load(checkpoint)['model'])
+        self.model.load_state_dict(torch.load(checkpoint)['state'])
