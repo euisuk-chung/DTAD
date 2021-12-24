@@ -69,31 +69,35 @@ python main.py -M TransformerEncoder -T Test -G 0 -R 30 -H 0.025 -C ./checkpoint
 
 ### 3.1. LSTM Auto Encoder
 
-<img src = 'https://github.com/euisuk-chung/timeseries-generation/blob/main/image/TimeGAN_architecture.PNG?raw=true' width="800" height="400">
+<img src = './image/LSTMAE.png' width="600">
 
-- pyTorch implementation for `TimeGAN`
-- Code Reference : https://github.com/d9n13lt4n/timegan-pytorch
 
 ### 3.2. 1D Convolution Auto Encoder
 
-<img src = 'https://github.com/euisuk-chung/timeseries-generation/blob/main/image/LSTM_VAE_architecture.png?raw=true' width="800" height="400">
+<img src = './image/1DCONV.png' width="600">
 
-- pyTorch implementation for `VRAE`
-- Code Reference : https://github.com/tejaslodaya/timeseries-clustering-vae
 
 ### 3.3. GRU
 
-<img src = 'https://github.com/euisuk-chung/timeseries-generation/blob/main/image/LSTM_VAE_architecture.png?raw=true' width="800" height="400">
+<img src = './image/GRU.png' width="600">
 
-- pyTorch implementation for `VRAE`
-- Code Reference : https://github.com/tejaslodaya/timeseries-clustering-vae
+
+### 3.4. Transformer Encoder
+
+<img src = './image/TransformerEncoder.png' width="600">
+
+
+- pyTorch implementation for `Transformer`
+- Code Reference : https://github.com/huggingface/transformers
 
 ### 3.4. GPT
 
-<img src = 'https://github.com/euisuk-chung/timeseries-generation/blob/main/image/LSTM_VAE_architecture.png?raw=true' width="800" height="400">
+<img src = './image/GPT.png' width="600">
 
-- pyTorch implementation for `VRAE`
-- Code Reference : https://github.com/tejaslodaya/timeseries-clustering-vae
+
+- pyTorch implementation for `GPT`
+- Code Reference : https://github.com/huggingface/transformers
+
 
 ## 4. Model Arguments
 
